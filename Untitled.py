@@ -6,14 +6,79 @@ import shutil
 from scipy.integrate import quad
 import sys
 import numpy as np
+import xml.etree.ElementTree as ET
 
-iterations = 50
+"""
+filepath = os.getcwd() + '/file.svg'
+tree = ET.parse(filepath)
+root = tree.getroot()
+path_element = root.find('path')
+path = path_element.get('d')
+"""
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+path_attribute = "M 261.10235595703125 79.82002258300781 L 128.00900268554688 184.22947692871094 L 197.9977569580078 185.3768310546875 L 133.74578857421875 251.9235076904297 L 195.70303344726562 250.77615356445312 L 133.74578857421875 320.764892578125 L 196.8503875732422 318.4701843261719 L 130.3037109375 390.753662109375 L 234.71316528320312 388.4589538574219 L 235.8605194091797 512.3734741210938 L 290.9336242675781 511.2261047363281 L 286.3442077636719 387.31158447265625 L 375.8380126953125 387.31158447265625 L 321.9122619628906 320.764892578125 L 375.8380126953125 319.6175537109375 L 319.6175537109375 254.21823120117188 L 374.690673828125 253.07086181640625 L 313.8807678222656 185.3768310546875 L 367.8065185546875 185.3768310546875 L 274.8706359863281 84.4094467163086"
+
+iterations = 60
 
 line_equation = lambda x, m, b : m*x + b
 
 # functionscape = [[((x_path, (m, b)), (lower_bound,upper_bound))], [((y_path, (m, b)), (lower_bound,upper_bound))]]
 
-path = [[0.7,0.9],[0.2,0.9],[0.2,0.5],[0.7,0.5],[0.7,0.1],[0.2,0.1],[0.701,0.901]]
+#path = [[0.7,0.9],[0.2,0.9],[0.2,0.5],[0.7,0.5],[0.7,0.1],[0.2,0.1],[0.701,0.901]]
+unscaled_path = []
+path = []
+
+path_split = path_attribute.split(" ")
+
+j = 0
+y_coordinates = []
+x_coordinates = []
+
+for i in path_split:
+    if not is_number(i):
+        continue
+
+
+    if j % 2 == 0:
+        x_coordinates.append(float(i))
+        j += 1
+        continue
+
+    y_coordinates.append(float(i))
+    j += 1
+
+
+highest_y_coordinate = max(y_coordinates)
+highest_x_coordinate = max(x_coordinates)
+
+graph_y_range = highest_y_coordinate * 1.2
+graph_x_range = highest_x_coordinate * 1.2
+
+x_coordinate = 0
+j = 1
+
+for i in path_split:
+    if not is_number(i):
+        continue
+
+    if j % 2 == 0:
+        unscaled_path.append([x_coordinate, graph_y_range - float(i)])
+        j += 1
+        continue
+
+    x_coordinate = float(i)
+    j += 1
+
+for i in unscaled_path:
+    path.append([i[0]/graph_x_range, i[1]/graph_y_range])
 
 total_path_length = 0
 previous_point = []
@@ -30,8 +95,6 @@ for i in path:
     total_path_length += path_length
 
     previous_point = i
-
-print(total_path_length)
 
 
 functionscape = [[],[]]
@@ -55,17 +118,6 @@ for i in path:
     lower_bound = upper_bound
     previous_point = i
 
-print('x: ')
-for i in functionscape[0]:
-    print(i[0][1])
-    print(i[1])
-    print(' ~ ')
-
-print('y: ')
-for i in functionscape[0]:
-    print(i[0][1])
-    print(i[1])
-    print(' ~ ')
 
 series = 'cos'
 
@@ -157,9 +209,9 @@ for i in circle_dimensions:
 '''~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'''
 
 
-FRAMECOUNT = 200
+FRAMECOUNT = 300
 
-centre = (500,1600)
+centre = [500,1600]
 
 frame_dimensions = (2100,2100)
 
@@ -183,9 +235,19 @@ def pointsSum(points, indice):
 
 def fill_past_points(ctx, points_collection):
     ctx.set_source_rgb(1,1,1)
-    for i in points_collection:
-        ctx.arc(i[0], i[1], 5, 0, math.pi*2)
+    ctx.set_line_width(5)
+    ctx.move_to(points_collection[0][0], points_collection[0][1])
+    for i in range(len(points_collection) - 1):
+        ctx.arc(points_collection[i][0], points_collection[i][1], 2, 0, math.pi*2)
         ctx.fill()
+
+        if (i == 0):
+            continue
+
+        ctx.move_to(points_collection[i - 1][0],points_collection[i - 1][1])
+        ctx.line_to(points_collection[i][0],points_collection[i][1])
+        ctx.stroke()
+    ctx.set_line_width(2)
 
 
 points_collection = []
@@ -198,6 +260,7 @@ os.mkdir(cwd + '/workdir')
 t = 0
 onedxplot = []
 onedyplot = []
+centre_point = centre
 
 for x in range(FRAMECOUNT):
     #create image surface and context
@@ -211,10 +274,10 @@ for x in range(FRAMECOUNT):
 
     #create center point
     ctx.set_source_rgb(1,1,1)
-    ctx.arc(centre[0],centre[1],10,0,2*math.pi)
+    ctx.arc(centre_point[0],centre_point[1],10,0,2*math.pi)
     ctx.fill()
 
-    points = [centre]
+    points = [centre_point]
 
 
 
@@ -245,11 +308,21 @@ for x in range(FRAMECOUNT):
 
         #if we are on the last circle, fill in the past points and add the current one to the collection
         if i == circle_dimensions[-1]:
-            fill_past_points(ctx, points_collection)
             points_collection.append((finalx, finaly))
+            fill_past_points(ctx, points_collection)
+
+    radii_position = [500,1600]
+
+    for i in points[1:]:
+        ctx.move_to(radii_position[0], radii_position[1])
+        radii_position[0] = radii_position[0] + i[0]
+        radii_position[1] = radii_position[1] + i[1]
+        ctx.line_to(radii_position[0], radii_position[1])
+
+    ctx.stroke()
 
     #horizontal and vertical tracking
-    onedyplot.append((1100 + t, points_collection[-1][1])) 
+    onedyplot.append((1100 + t, points_collection[-1][1]))
     ctx.move_to(points_collection[-1][0], points_collection[-1][1])
     ctx.line_to(1100 + t, points_collection[-1][1])
     ctx.stroke()
@@ -290,5 +363,5 @@ imageio.mimsave(cwd + '/final.gif', images)
 
 #remove images after gif is created
 shutil.rmtree(cwd + '/workdir/')
-        
+
 print('finished')
