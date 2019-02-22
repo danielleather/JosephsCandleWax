@@ -593,3 +593,4 @@ print("removing workdir")
 shutil.rmtree(cwd + '/workdir/')
 
 print('finished')
+print('file located at ' + cwd + '/final.gif')
